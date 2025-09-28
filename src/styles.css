@@ -1,0 +1,1021 @@
+* {
+  box-sizing: border-box;
+}
+html,
+body,
+#root {
+  height: 100%;
+  margin: 0;
+  background: transparent;
+}
+body {
+  font-family: Futura, "Trebuchet MS", system-ui, -apple-system, "Segoe UI",
+    Roboto, Arial, sans-serif;
+}
+
+.stage {
+  position: relative;
+  width: 1920px;
+  height: 1080px;
+  overflow: hidden;
+  background: transparent;
+}
+
+.side {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 340px;
+  display: flex;
+  flex-direction: column;
+  padding: 16px 12px;
+  gap: 0px;
+  background: linear-gradient(
+    180deg,
+    rgba(15, 23, 42, 0.9),
+    rgba(15, 23, 42, 0.75)
+  );
+  border: 2px solid rgba(255, 255, 255, 0.08);
+  backdrop-filter: blur(2px);
+}
+.left {
+  left: 0;
+  border-right: 0;
+}
+.right {
+  right: 0;
+  border-left: 0;
+}
+
+/* Turn indicator: highlight the side that currently has the turn */
+/* Outer wrapper that holds the side and the external border. This prevents the border
+   from altering the width of the actual `.side` element. */
+.side-outer {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 340px;
+  pointer-events: none; /* keep border non-interactive */
+}
+.side-outer.left {
+  left: 0;
+}
+.side-outer.right {
+  right: 0;
+}
+
+/* A zero-width element used to draw the outside border so it doesn't change layout */
+.side-outer.left.turn::after,
+.side-outer.right.turn::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 0;
+  pointer-events: none;
+  z-index: 60; /* ensure the border appears above the side background */
+}
+.side-outer.left.turn::after {
+  right: -6px; /* place border just outside the side */
+  border-right: 6px solid rgba(250, 204, 21, 0.95);
+  box-shadow: 0 0 34px rgba(250, 204, 21, 0.14);
+}
+.side-outer.right.turn::after {
+  left: -6px; /* place border just outside the side */
+  border-left: 6px solid rgba(250, 204, 21, 0.95);
+  box-shadow: 0 0 34px rgba(250, 204, 21, 0.14);
+}
+
+/* Subtle pulsing animation for the overlay turn border */
+@keyframes turnPulse {
+  0% {
+    box-shadow: 0 0 36px rgba(250, 204, 21, 0.16);
+    transform: translateZ(0) scaleY(1);
+  }
+  50% {
+    box-shadow: 0 0 72px rgba(250, 204, 21, 0.3);
+    transform: translateZ(0) scaleY(1.035);
+  }
+  100% {
+    box-shadow: 0 0 36px rgba(250, 204, 21, 0.16);
+    transform: translateZ(0) scaleY(1);
+  }
+}
+
+.side-outer.left.turn::after,
+.side-outer.right.turn::after {
+  animation: turnPulse 1200ms ease-in-out infinite;
+  will-change: box-shadow, transform;
+}
+
+/* keep the old .side.turn hook for any additional styling if needed */
+
+.player-card {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  grid-template-rows: auto auto;
+  gap: 6px 8px;
+  padding: 10px;
+  border-radius: 14px;
+  background: rgba(30, 41, 59, 0.9);
+  color: #e2e8f0;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.25);
+}
+
+.bench-item {
+  width: 220px; /* match hi-res thumbnail width */
+  aspect-ratio: 734 / 1024; /* card proportion */
+  position: relative;
+  background: rgba(255, 255, 255, 0.02);
+  border-radius: 8px;
+  overflow: hidden;
+  box-shadow: 0 8px 18px rgba(0, 0, 0, 0.12);
+}
+.bench-item img {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.bench-item .meta {
+  position: absolute;
+  left: 8px;
+  right: 8px;
+  bottom: 8px;
+  background: rgba(2, 6, 23, 0.6);
+  padding: 6px 8px;
+  border-radius: 6px;
+  color: #e2e8f0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+.bench-item .meta .name {
+  font-weight: 800;
+}
+.bench-item .meta .name {
+  font-weight: 800;
+}
+.bench-item .meta .hp {
+  font-size: 12px;
+  opacity: 0.85;
+}
+.player-name {
+  font-size: 22px;
+  font-weight: 800;
+  letter-spacing: 0.5px;
+}
+.tiny {
+  font-size: 11px;
+  opacity: 0.85;
+}
+.side {
+  min-height: 0;
+}
+
+.side img {
+  max-width: 100%;
+  height: auto;
+  display: block;
+}
+
+.active-card {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 160px;
+}
+.active-card-inner {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  background: rgba(255, 255, 255, 0.03);
+  padding: 10px;
+  border-radius: 12px;
+  width: 100%;
+}
+.active-thumb img {
+  width: 220px;
+  height: 120px;
+  object-fit: cover;
+  border-radius: 8px;
+  box-shadow: 0 8px 18px rgba(0, 0, 0, 0.4);
+}
+.active-meta {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.active-name {
+  font-weight: 900;
+  font-size: 18px;
+}
+.active-hp {
+  font-weight: 800;
+  color: #9be7a5;
+}
+.active-empty {
+  color: #94a3b8;
+  opacity: 0.8;
+}
+.muted {
+  opacity: 0.7;
+}
+.active-hpbar-wrap {
+  margin-top: 6px;
+}
+.active-hpbar {
+  flex: 1 1 auto; /* allow bar to grow to available space */
+  height: 8px;
+  background: rgba(255, 255, 255, 0.04);
+  border-radius: 6px;
+  overflow: hidden;
+  min-width: 80px; /* keep a reasonable minimum */
+}
+.active-hpbar-fill {
+  height: 100%;
+  width: 0%;
+  background: linear-gradient(90deg, #16a34a, #84cc16);
+  transition: width 220ms ease-out;
+}
+
+/* When skipping HP animations (e.g., immediately after a swap), disable hp bar transition */
+.active-bottom.skip-hp-anim .active-hpbar-fill {
+  transition: none !important;
+}
+.active-hpbar-fill.hp-decrease {
+  background: linear-gradient(90deg, #ef4444, #f97316) !important;
+  transition: width 220ms ease-out, background 180ms ease;
+}
+.active-hpbar-fill.hp-increase {
+  background: linear-gradient(90deg, #16a34a, #84cc16) !important;
+  box-shadow: 0 0 8px rgba(20, 184, 166, 0.6);
+  transition: width 220ms ease-out, box-shadow 220ms ease;
+}
+.active-bottom {
+  margin-top: 0; /* keep flush against active-mid */
+  padding-top: 0; /* remove extra spacing */
+  border-top: 1px solid rgba(255, 255, 255, 0.03);
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.active-ability {
+  font-size: 12px;
+  color: #e6eef8;
+}
+.active-attack {
+  font-size: 12px;
+  color: #fff; /* match ability color */
+  font-weight: 800; /* make attacks visually match abilities */
+}
+
+.active-ability.empty,
+.active-attack.empty {
+  color: transparent; /* hide text */
+  opacity: 0; /* ensure hidden in all cases */
+  pointer-events: none;
+}
+.active-ability,
+.active-attack {
+  min-height: 16px; /* reserve space even when empty */
+}
+
+/* Truncate long ability/attack text to avoid expanding the reserved area */
+.active-ability,
+.active-attack {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap; /* keep single-line display; prevents wrapping that would expand the area */
+}
+
+/* New active-panel layout requested by user */
+.active-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 0; /* remove vertical gap so mid and bottom are flush */
+  width: 100%;
+  align-items: stretch; /* allow children to fill width */
+}
+.active-top {
+  font-weight: 900;
+  font-size: 18px;
+  padding: 6px 10px;
+  color: white;
+}
+.active-mid {
+  width: 100%;
+  display: block;
+}
+.active-mid {
+  width: 100%;
+  display: block;
+  height: 170px; /* fixed display height */
+  overflow: hidden;
+  border-radius: 8px; /* ensure container clips children for rounded corners */
+}
+.active-mid img {
+  width: 100%;
+  height: 170px; /* image matches container height */
+  object-fit: cover; /* crop to fill the area */
+  border-radius: 8px;
+  display: block;
+}
+
+/* Ensure transforms and object-position changes are instant (no CSS transition) */
+.active-mid img,
+.active-image img,
+.bench-thumb img {
+  transition: none !important;
+}
+.active-crop-fallback {
+  position: relative;
+  width: 100%;
+  height: 120px;
+  overflow: hidden;
+  border-radius: 8px;
+}
+.active-crop-fallback .active-crop-img {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: auto !important;
+  height: auto !important;
+  object-fit: none !important; /* allow exact pixel positioning */
+  transform-origin: top left !important;
+}
+.active-hp-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+}
+.active-hp-text {
+  font-weight: 800;
+  color: #9be7a5;
+  min-width: 56px;
+}
+.active-bottom {
+  width: 100%;
+  /* fixed height prevents layout shifts when abilities or attacks are present */
+  height: 120px;
+  min-height: 120px;
+  max-height: 120px;
+  overflow: hidden; /* hide overflow so the panel doesn't scroll internally */
+  padding: 6px 0; /* preserve small vertical padding for content */
+}
+.deck-tag {
+  grid-column: 1 / -1;
+  font-weight: 900;
+  font-size: 18px;
+  padding: 6px 8px;
+  border-radius: 9px;
+  background: #0ea5e9;
+  color: #fff;
+}
+
+.card-used {
+  width: 100%;
+  display: block;
+  padding: 0 5px; /* add 5px horizontal padding as requested */
+}
+.card-used img {
+  display: block;
+  width: 100%;
+  height: auto; /* adaptive height */
+  object-fit: contain;
+  border-radius: 6px;
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.18);
+}
+
+/* used-card entrance/exit animations */
+.card-used.enter.left {
+  animation: usedInLeft 360ms cubic-bezier(0.22, 0.9, 0.36, 1) both;
+}
+.card-used.enter.right {
+  animation: usedInRight 360ms cubic-bezier(0.22, 0.9, 0.36, 1) both;
+}
+.card-used.exit.left {
+  animation: usedOutLeft 260ms cubic-bezier(0.4, 0, 0.2, 1) both;
+}
+.card-used.exit.right {
+  animation: usedOutRight 260ms cubic-bezier(0.4, 0, 0.2, 1) both;
+}
+
+@keyframes usedInLeft {
+  0% {
+    transform: translateX(-18px) scale(0.99);
+    opacity: 0;
+    filter: blur(1px) saturate(0.95);
+  }
+  100% {
+    transform: translateX(0) scale(1);
+    opacity: 1;
+    filter: none;
+  }
+}
+
+@keyframes usedInRight {
+  0% {
+    transform: translateX(18px) scale(0.99);
+    opacity: 0;
+    filter: blur(1px) saturate(0.95);
+  }
+  100% {
+    transform: translateX(0) scale(1);
+    opacity: 1;
+    filter: none;
+  }
+}
+
+@keyframes usedOutLeft {
+  0% {
+    transform: translateX(0) scale(1);
+    opacity: 1;
+  }
+  100% {
+    transform: translateX(-18px) scale(0.98);
+    opacity: 0;
+  }
+}
+
+@keyframes usedOutRight {
+  0% {
+    transform: translateX(0) scale(1);
+    opacity: 1;
+  }
+  100% {
+    transform: translateX(18px) scale(0.98);
+    opacity: 0;
+  }
+}
+
+.stat {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px;
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(2, 6, 23, 0.55);
+  color: #e2e8f0;
+}
+
+.stat-items {
+  display: inline-flex;
+  gap: 8px;
+  align-items: center;
+}
+.stat-item {
+  background: rgba(255, 255, 255, 0.03);
+  padding: 6px 10px;
+  border-radius: 999px;
+  font-weight: 800;
+  font-size: 12px;
+  text-transform: none;
+  color: #e2e8f0;
+}
+
+/* visual for used/disabled stat (supporter already used this turn) */
+.stat-item.disabled {
+  opacity: 0.45;
+  filter: grayscale(0.25);
+  text-decoration: line-through;
+  cursor: not-allowed;
+  pointer-events: none;
+}
+
+/* Pin stat to bottom of the side panel so it stays lower and avoids overlap */
+.side > .stat {
+  position: absolute;
+  left: 12px;
+  right: 12px;
+  bottom: 12px;
+  margin: 0;
+  z-index: 5;
+}
+.stat .label {
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  opacity: 0.8;
+}
+.stat .value {
+  font-weight: 800;
+}
+
+.zones {
+  display: grid;
+  grid-template-rows: repeat(4, 1fr);
+  gap: 8px;
+  padding: 8px;
+  border-radius: 12px;
+  border: 1px dashed rgba(255, 255, 255, 0.12);
+  background: rgba(2, 6, 23, 0.35);
+  color: #cbd5e1;
+}
+.zones .row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 10px;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.04);
+}
+.zones .empty {
+  opacity: 0.5;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+}
+
+/* State container and bench list sizing */
+.state-container {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  /* fixed height requested by user */
+  height: 400px;
+  min-height: 400px;
+  max-height: 400px;
+  background: transparent;
+}
+.bench-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  align-items: stretch;
+  height: 100%;
+}
+.bench-list-inner {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  flex: 1 1 auto; /* fill available vertical space */
+  justify-content: space-between; /* distribute slots evenly */
+  min-height: 0;
+  padding: 4px 0;
+}
+.bench-slot {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  padding: 6px 8px;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid rgba(255, 255, 255, 0.03);
+  box-shadow: 0 6px 14px rgba(0, 0, 0, 0.08);
+  flex: 1 1 0; /* allow each slot to grow/shrink equally */
+  min-height: 56px; /* reasonable min size */
+}
+.bench-slot.added-left {
+  animation: slideInLeft 360ms ease-out;
+}
+.bench-slot.added-right {
+  animation: slideInRight 360ms ease-out;
+}
+
+/* When skipping HP/slot animations (e.g., right after swap), suppress bench animations */
+/* bench animations are retained; only HP animations are suppressed on swap */
+
+@keyframes slideInLeft {
+  0% {
+    transform: translateX(-18px);
+    opacity: 0;
+  }
+  100% {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+@keyframes slideInRight {
+  0% {
+    transform: translateX(18px);
+    opacity: 0;
+  }
+  100% {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+/* swap animation removed: active panel should update immediately without CSS animation */
+.bench-thumb {
+  border-radius: 6px;
+  overflow: hidden;
+  background: #f5f5f5;
+}
+.bench-meta {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  flex: 1 1 auto;
+  min-width: 0;
+}
+.bench-name {
+  font-weight: 800;
+  /* responsive font: shrink for long names but keep legible */
+  font-size: clamp(8px, 1.2vw, 12px);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
+}
+.bench-hp {
+  font-size: 12px;
+  opacity: 0.8;
+}
+
+/* Ability / Attack badge */
+.ability-badge {
+  display: inline-flex;
+  align-items: center;
+  width: 100%;
+  background: transparent;
+  transition: background 180ms ease, width 220ms ease-out, box-shadow 220ms ease;
+  color: #fff;
+  padding: 4px 8px;
+  border-radius: 999px;
+  font-weight: 800;
+  font-size: 12px;
+}
+.bench-hpbar-fill.hp-decrease {
+  background: linear-gradient(90deg, #ef4444, #f97316) !important;
+  box-shadow: 0 0 8px rgba(239, 68, 68, 0.5);
+}
+.bench-hpbar-fill.hp-increase {
+  background: linear-gradient(90deg, #16a34a, #84cc16) !important;
+  box-shadow: 0 0 8px rgba(20, 184, 166, 0.5);
+}
+.ability-badge .ability-label {
+  background: transparent; /* keep label background transparent */
+  color: #fff;
+  padding: 2px 6px;
+  border-radius: 6px;
+  font-size: 11px;
+  font-weight: 900;
+}
+.ability-badge .ability-label-img {
+  height: var(--ability-badge-size, 22px);
+  display: inline-block;
+}
+.ability-badge .ability-label-fallback {
+  display: inline-flex;
+  align-items: center;
+  margin-left: 6px;
+  font-weight: 900;
+  font-size: calc(var(--ability-badge-size, 22px) * 0.45);
+  color: #fff;
+  background: transparent;
+  padding: calc(var(--ability-badge-size, 22px) * 0.18)
+    calc(var(--ability-badge-size, 22px) * 0.45);
+  border-radius: 999px;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.25);
+}
+.attack-cost img {
+  width: 18px;
+  height: 18px;
+  display: inline-block;
+}
+.attack-cost {
+  display: inline-flex;
+  align-items: center;
+}
+.ability-badge .ability-title {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 180px;
+}
+
+.center-strip {
+  position: absolute;
+  left: 340px;
+  right: 340px;
+  top: 0;
+  bottom: 0;
+  pointer-events: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.stadium {
+  position: absolute;
+  top: 12px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 300px; /* fixed width as requested */
+  background: rgba(2, 6, 23, 0.8);
+  color: #dbeafe;
+  border: 1px solid rgba(59, 130, 246, 0.4);
+  padding: 8px 16px;
+  border-radius: 10px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+}
+
+/* Stadium flash animation when a stadium card is used */
+.stadium-flash {
+  animation: stadiumFlash 1.2s ease-in-out both;
+  box-shadow: 0 0 18px rgba(59, 130, 246, 0.9);
+  border-color: rgba(96, 165, 250, 0.95);
+}
+@keyframes stadiumFlash {
+  0% {
+    transform: translateX(-50%) scale(1);
+    opacity: 0.95;
+  }
+  20% {
+    transform: translateX(-50%) scale(1.06);
+    opacity: 1;
+  }
+  60% {
+    transform: translateX(-50%) scale(1.02);
+    opacity: 1;
+  }
+  100% {
+    transform: translateX(-50%) scale(1);
+    opacity: 0.98;
+  }
+}
+
+/* stadium inner card image */
+.stadium-inner {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  justify-content: center; /* center content inside fixed width */
+}
+.stadium-name {
+  font-weight: 800;
+  color: #dbeafe;
+}
+
+.footer {
+  position: absolute;
+  left: 340px;
+  right: 340px;
+  bottom: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.footer-pill {
+  background: linear-gradient(
+    90deg,
+    rgba(14, 165, 233, 0.9),
+    rgba(59, 130, 246, 0.9)
+  );
+  color: #fff;
+  padding: 10px 18px;
+  border-radius: 999px;
+  font-weight: 900;
+  letter-spacing: 0.1em;
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  text-shadow: 0 1px 0 rgba(0, 0, 0, 0.4);
+}
+.footer-pill .timer {
+  margin-left: 10px;
+  font-variant-numeric: tabular-nums;
+  background: rgba(0, 0, 0, 0.25);
+  padding: 6px 10px;
+  border-radius: 8px;
+}
+
+/* Countdown display (overlay) */
+.match-countdown {
+  font-weight: 900;
+  color: #fff;
+  text-shadow: 0 8px 30px rgba(0, 0, 0, 0.6);
+}
+
+.control-wrap {
+  padding: 20px;
+  width: 100%;
+  max-width: none;
+  margin: 0;
+  color: #e5e7eb;
+  background: #071025; /* slightly darker full-width background */
+  min-height: 100vh;
+}
+
+/* Round label buttons in control */
+.round-btn {
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  padding: 6px 10px;
+}
+.round-btn.active {
+  background: linear-gradient(90deg, #f97316, #f43f5e);
+  color: white;
+  border-color: rgba(255, 255, 255, 0.12);
+}
+
+/* Active state for control buttons */
+.btn.active {
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.25);
+  transform: translateY(-1px);
+  border-color: rgba(255, 255, 255, 0.12);
+  background: linear-gradient(
+    90deg,
+    rgba(250, 204, 21, 0.95),
+    rgba(250, 204, 21, 0.8)
+  );
+  color: #081019;
+}
+.grid-2 {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+}
+@media (max-width: 1100px) {
+  .grid-2 {
+    grid-template-columns: 1fr; /* stack columns on narrow viewports */
+  }
+}
+.card {
+  background: #071025;
+  color: #e5e7eb;
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 10px;
+  padding: 14px;
+  max-width: 1100px; /* keep content readable */
+  margin: 0 auto 12px auto;
+}
+/* Highlight the player card in the control UI when it's that player's turn */
+.card.turn {
+  box-shadow: 0 10px 40px rgba(250, 204, 21, 0.12),
+    0 2px 6px rgba(0, 0, 0, 0.35) inset;
+  border-color: rgba(250, 204, 21, 0.95);
+  background: linear-gradient(
+    180deg,
+    rgba(25, 18, 0, 0.6),
+    rgba(7, 16, 37, 0.9)
+  );
+}
+.card h3 {
+  margin: 0 0 10px;
+}
+.row {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 8px;
+  align-items: center;
+}
+.row label {
+  width: 140px;
+  font-size: 12px;
+  opacity: 0.8;
+  text-transform: uppercase;
+}
+.row input {
+  flex: 1;
+  padding: 8px 10px;
+  border-radius: 8px;
+  border: 1px solid #334155;
+  background: #0f172a;
+  color: #e2e8f0;
+}
+.btn-bar {
+  display: flex;
+  gap: 8px;
+  margin-top: 10px;
+  flex-wrap: wrap;
+}
+.btn {
+  padding: 8px 12px;
+  border-radius: 10px;
+  border: 1px solid #475569;
+  background: #111827;
+  color: #e5e7eb;
+  cursor: pointer;
+}
+.btn.primary {
+  background: #0ea5e9;
+  border-color: #0284c7;
+  color: #fff;
+  font-weight: 800;
+}
+
+/* Disabled button visuals */
+.btn[disabled],
+.btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+  filter: grayscale(0.2);
+  pointer-events: none;
+  box-shadow: none;
+}
+
+.state-container {
+  width: 100%;
+  height: 400px;
+  border-radius: 10px;
+  color: #fff;
+}
+
+/* Keep the stat bar visible at all times; remove automatic translate when used-visible */
+.stat {
+  transition: transform 260ms cubic-bezier(0.4, 0, 0.2, 1), opacity 200ms ease;
+}
+
+/* Attack display and energy icons */
+.attack-display {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.attack-energy-list {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin-right: 6px;
+}
+.attack-energy {
+  width: 18px;
+  height: 18px;
+  object-fit: contain;
+  vertical-align: middle;
+}
+.attack-label {
+  display: inline-block;
+  color: #fff;
+  font-weight: 900;
+}
+
+/* Skills container - groups ability and attacks */
+.skills {
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  background: rgba(2, 6, 23, 0.45);
+  padding: 8px 10px;
+  border-radius: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+/* Damage / Heal animations for active image and bench thumbs */
+.active-image {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+/* Hit animations removed to avoid shaking/flash on swap */
+
+/* KO animation: scale down, rotate slightly and fade out */
+.active-image.ko-anim {
+  animation: koFade 820ms ease-in forwards;
+}
+
+@keyframes koFade {
+  0% {
+    transform: scale(1) rotate(0deg);
+    opacity: 1;
+    filter: none;
+    transform-origin: center center;
+  }
+  40% {
+    transform: scale(1.08) rotate(6deg);
+    opacity: 0.95;
+    filter: saturate(1.1) hue-rotate(0deg);
+  }
+  100% {
+    transform: scale(0.6) rotate(18deg) translateY(24px);
+    opacity: 0;
+    filter: grayscale(1) blur(2px);
+  }
+}
+
+/* Waiting placeholder for empty active (simplified, no animation) */
+.active-empty-wait {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  color: #94a3b8;
+  font-weight: 800;
+  font-size: 18px;
+}
+.waiting {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+.dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 999px;
+  background: #94a3b8;
+  display: inline-block;
+  opacity: 0.6;
+  margin-left: 4px;
+}
+.dot1,
+.dot2,
+.dot3 {
+  animation: none;
+}
