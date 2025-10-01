@@ -7,6 +7,7 @@ export default function AbilityBadge({
   style,
   labelImgSrc,
   size,
+  used,
 }: {
   label?: string | null;
   children: React.ReactNode;
@@ -16,6 +17,8 @@ export default function AbilityBadge({
   labelImgSrc?: string;
   // size in px for the label image and related spacing
   size?: number;
+  // whether the ability has been used (grayscale label)
+  used?: boolean;
 }) {
   const defaultSrc = labelImgSrc || "/ability-badge.png";
   const altSrc = "/ability.png";
@@ -38,7 +41,11 @@ export default function AbilityBadge({
 
   return (
     <div
-      className={["ability-badge", className || ""].join(" ")}
+      className={[
+        "ability-badge",
+        className || "",
+        used ? "ability-used" : "",
+      ].join(" ")}
       style={mergedStyle}
     >
       {label ? (

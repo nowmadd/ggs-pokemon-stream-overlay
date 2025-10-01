@@ -9,11 +9,13 @@ export default function PlayerPanel({
   data,
   stadium,
   isTurn,
+  showHp = true,
 }: {
   side?: "left" | "right";
   data: PlayerState;
   stadium?: string;
   isTurn?: boolean;
+  showHp?: boolean;
 }) {
   const [croppedActive, setCroppedActive] = useState<string | null>(null);
   const prevActiveRef = useRef<any | null>(null);
@@ -661,8 +663,31 @@ export default function PlayerPanel({
       >
         <div className="player-card">
           <div>
-            <div className="player-name">{data.name}</div>
-            <div className="tiny muted">{data.record}</div>
+            <div
+              className="player-name"
+              style={{ display: "flex", gap: 10, alignItems: "center" }}
+            >
+              {data.name}
+              <span className={"tiny muted"}> {data.record}</span>
+            </div>
+
+            <div className="player-prize-card">
+              {/* Render six prize placeholders using the poke-life.svg in public.
+                  Visual collected state is read from data.prizes (boolean[]). */}
+              {Array.from({ length: 6 }).map((_, idx) => {
+                const collected = Array.isArray(data?.prizes)
+                  ? !!data?.prizes[idx]
+                  : false;
+                return (
+                  <img
+                    key={idx}
+                    src="/poke-life.svg"
+                    alt={`Prize ${idx + 1}`}
+                    className={"player-prize-img" + (collected ? " collected" : "")}
+                  />
+                );
+              })}
+            </div>
           </div>
         </div>
 
@@ -709,6 +734,58 @@ export default function PlayerPanel({
                       objectPosition: imgObjectPosition,
                     }}
                   />
+                  {/* small tool image badge in lower-right of active image */}
+                  {(() => {
+                    const toolName =
+                      (data?.active as any)?.tool ||
+                      (data as any)?.tool ||
+                      null;
+                    if (!toolName) return null;
+                    try {
+                      const found = ALL_CARDS.find(
+                        (c: any) =>
+                          String(c.name || "").toLowerCase() ===
+                          String(toolName).toLowerCase()
+                      );
+                      const raw =
+                        found?.images?.small || found?.images?.large || null;
+                      const src = raw ? pickHires(raw) || raw : null;
+                      if (!src) return null;
+                      return (
+                        <div
+                          style={{
+                            position: "absolute",
+                            left: isRight ? 255 : 25,
+                            top: 260,
+                            width: 60,
+                            height: 35,
+                            // borderRadius: 6,
+                            pointerEvents: "none",
+                            zIndex: 6,
+                          }}
+                        >
+                          <img
+                            src={src as string}
+                            alt={String(toolName)}
+                            className="active-tool-badge"
+                            style={{
+                              width: "100%",
+                              height: "100%",
+                              display: "block",
+                              objectFit: "cover",
+                              transform: `scale(1.2)`,
+                              transformOrigin: "center",
+                              objectPosition: "center -10px",
+                            }}
+                          />
+                        </div>
+                      );
+                    } catch {
+                      return null;
+                    }
+                  })()}
+                  {/* show attached tool label on active if present */}
+
                   {koActiveImage ? (
                     <img
                       src={koActiveImage}
@@ -743,7 +820,7 @@ export default function PlayerPanel({
               " "
             )}
           >
-            {data?.active?.name ? (
+            {showHp && data?.active?.name ? (
               <div className="active-hp-row">
                 <div className="active-hp-text">
                   {displayHp != null ? `${displayHp}/${maxHp}` : ""}
@@ -762,7 +839,12 @@ export default function PlayerPanel({
             {/* HP controls moved to Control UI; overlay displays animated changes only */}
             <div className="skills">
               {activeAbility && String(activeAbility).trim() !== "" && (
-                <AbilityBadge label="Ability">{activeAbility}</AbilityBadge>
+                <AbilityBadge
+                  label="Ability"
+                  used={Boolean(data?.active?.abilityUsed)}
+                >
+                  {activeAbility}
+                </AbilityBadge>
               )}
 
               <div className="active-attack">
@@ -949,6 +1031,7 @@ export default function PlayerPanel({
                           );
                         })()}
                       </div>
+
                       <div className="bench-meta">
                         <div className="bench-name">
                           {name || <span className="tiny muted">Empty</span>}
@@ -958,6 +1041,7 @@ export default function PlayerPanel({
                             label="Ability"
                             size={15}
                             style={{ marginLeft: -13, marginBottom: -10 }}
+                            used={Boolean(slot?.abilityUsed)}
                           >
                             {slotAbility}
                           </AbilityBadge>
@@ -967,6 +1051,7 @@ export default function PlayerPanel({
                           const hasName =
                             slot && String(slot?.name || "").trim() !== "";
                           if (!hasName) return null;
+                          if (!showHp) return null;
                           return (
                             <div
                               style={{
