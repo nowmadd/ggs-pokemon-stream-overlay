@@ -5,6 +5,8 @@ export type Pokemon = {
   maxHp?: number;
   image?: string;
   tool?: string;
+  // whether this Pokémon's ability has been used (UI flag)
+  abilityUsed?: boolean;
   subtypes?: string[];
 };
 export type PlayerState = {
@@ -23,11 +25,15 @@ export type PlayerState = {
   lastUsedName?: string;
   lastUsedType?: string;
   bench?: (Pokemon | null)[];
+  // prize markers: true == collected (grayscaled)
+  prizes?: boolean[];
   zones: string[];
 };
 export type OverlayState = {
   canvas: { width: number; height: number };
   stadium: string;
+  // whether to show HP bars/numbers on the overlay
+  showHp?: boolean;
   // match countdown (seconds) and whether it's active
   countdown?: number;
   countdownRunning?: boolean;
@@ -55,6 +61,7 @@ export const defaultState: OverlayState = {
     active: { name: "", hp: 0, maxHp: 300 },
     supporterUsed: false,
     bench: [],
+    prizes: [false, false, false, false, false, false],
     zones: ["", "", "", ""],
   },
   right: {
@@ -64,8 +71,11 @@ export const defaultState: OverlayState = {
     active: { name: "", hp: 0, maxHp: 300 },
     supporterUsed: false,
     bench: [],
+    prizes: [false, false, false, false, false, false],
     zones: ["", "", "", ""],
   },
+  // show HP by default
+  showHp: true,
 };
 
 export function loadState(): OverlayState {

@@ -62,6 +62,73 @@ export default function Control(): JSX.Element {
     } catch {}
   };
 
+  // Toggle prize collected state for a given player and index
+  const togglePrize = (side: "left" | "right", idx: number) => {
+    try {
+      const next: any = structuredClone(state);
+      next[side] = next[side] || {};
+      next[side].prizes = next[side].prizes || [false, false, false, false, false, false];
+      next[side].prizes[idx] = !next[side].prizes[idx];
+      setState(next);
+      sendFull(next);
+    } catch (e) {
+      console.error("togglePrize", e);
+    }
+  };
+
+  // Helper to mark abilityUsed on a target (active or bench index) for a side
+  const setAbilityUsedOnTarget = (
+    side: "left" | "right",
+    target: "active" | number,
+    value: boolean
+  ) => {
+    try {
+      const next: any = structuredClone(state);
+      if (target === "active") {
+        next[side].active = next[side].active || null;
+        if (next[side].active) next[side].active.abilityUsed = value;
+      } else {
+        next[side].bench = next[side].bench || [];
+        next[side].bench[target] = next[side].bench[target] || null;
+        if (next[side].bench[target])
+          next[side].bench[target].abilityUsed = value;
+      }
+      setState(next);
+      sendFull(next);
+    } catch (e) {
+      console.error("setAbilityUsedOnTarget", e);
+    }
+  };
+
+  // Helper to set or clear a tool on a target (active or bench index) for a side
+  const setToolOnTarget = (
+    side: "left" | "right",
+    target: "active" | number,
+    value: string | null
+  ) => {
+    try {
+      const next: any = structuredClone(state);
+      if (target === "active") {
+        if (next[side].active) {
+          if (value === null) delete next[side].active.tool;
+          else next[side].active.tool = value;
+        } else {
+          if (value === null) delete next[side].tool;
+          else next[side].tool = value;
+        }
+      } else {
+        next[side].bench = next[side].bench || [];
+        next[side].bench[target] = next[side].bench[target] || {};
+        if (value === null) delete next[side].bench[target].tool;
+        else next[side].bench[target].tool = value;
+      }
+      setState(next);
+      sendFull(next);
+    } catch (e) {
+      console.error("setToolOnTarget", e);
+    }
+  };
+
   const parseTimer = (s: string) => {
     // accept MM:SS or seconds as number
     if (!s) return 0;
@@ -227,6 +294,38 @@ export default function Control(): JSX.Element {
         }
       } catch {}
     }
+    // Also clear abilityUsed when the turn changes: the player who gains the turn should have abilityUsed reset
+    if (path === "turn") {
+      try {
+        const newTurn = String(value) as "left" | "right" | "";
+        if (newTurn === "left" || newTurn === "right") {
+          // clear abilityUsed flags for the player who now has the turn
+          const player = (next as any)[newTurn] || {};
+          if (player.active) player.active.abilityUsed = false;
+          if (Array.isArray(player.bench)) {
+            player.bench = player.bench.map((b: any) =>
+              b ? { ...b, abilityUsed: false } : b
+            );
+          }
+        } else if (newTurn === "") {
+          // clearing turn: reset both players' ability flags
+          (next as any).left = (next as any).left || {};
+          (next as any).right = (next as any).right || {};
+          if ((next as any).left.active)
+            (next as any).left.active.abilityUsed = false;
+          if ((next as any).right.active)
+            (next as any).right.active.abilityUsed = false;
+          if (Array.isArray((next as any).left.bench))
+            (next as any).left.bench = (next as any).left.bench.map((b: any) =>
+              b ? { ...b, abilityUsed: false } : b
+            );
+          if (Array.isArray((next as any).right.bench))
+            (next as any).right.bench = (next as any).right.bench.map(
+              (b: any) => (b ? { ...b, abilityUsed: false } : b)
+            );
+        }
+      } catch {}
+    }
     setState(next);
     sendFull(next);
   };
@@ -292,6 +391,36 @@ export default function Control(): JSX.Element {
     const digits = String(raw).replace(/[^0-9]/g, "");
     const p = Number(digits);
     return Number.isFinite(p) ? p : 0;
+  };
+
+  // Robust tool-subtype detection: strip diacritics and look for 'tool' substring
+  const isToolSubtype = (subs: string[] = []) => {
+    try {
+      for (const s of subs) {
+        if (!s) continue;
+        // normalize and remove diacritics so 'Pokémon' -> 'Pokemon'
+        const norm = String(s)
+          .toLowerCase()
+          .normalize("NFD")
+          // remove combining diacritical marks (compatible with older targets)
+          .replace(/[\u0300-\u036f]/g, "");
+        if (norm.includes("tool")) return true;
+      }
+    } catch {}
+    return false;
+  };
+
+  const isPokemonSupertype = (sup?: string) => {
+    try {
+      if (!sup) return false;
+      const norm = String(sup)
+        .toLowerCase()
+        .normalize("NFD")
+        .replace(/[\u0300-\u036f]/g, "");
+      return norm.includes("pokemon");
+    } catch {
+      return false;
+    }
   };
 
   // Helper: determine if a given side has any 'tera' subtype (active or bench)
@@ -684,7 +813,7 @@ export default function Control(): JSX.Element {
     const next: any = structuredClone(state);
     const now = Date.now();
     if (subs.includes("stadium")) next.stadium = card.name || "";
-    if (subs.includes("item") || subs.includes("tool")) {
+    if (subs.includes("item") || isToolSubtype(subs)) {
       if (next[eff].active) next[eff].active.tool = card.name || "";
       else next[eff].tool = card.name || "";
     }
@@ -705,11 +834,44 @@ export default function Control(): JSX.Element {
       ? "stadium"
       : subs.includes("item")
       ? "item"
-      : subs.includes("tool")
+      : isToolSubtype(subs)
       ? "tool"
       : "";
     setState(next);
     sendFull(next);
+  };
+
+  // Attach a tool card to a specific target (active or bench index) on a side.
+  const attachToolTo = (
+    side: "left" | "right",
+    target: "active" | number,
+    card: any
+  ) => {
+    try {
+      const next: any = structuredClone(state);
+      const name = card.name || "";
+      // Tools attach to an active Pokémon's `tool` field, or to a bench slot's `tool`.
+      if (target === "active") {
+        if (!next[side].active) {
+          // if no active, fall back to top-level player tool
+          next[side].tool = name;
+        } else {
+          next[side].active.tool = name;
+        }
+      } else {
+        next[side].bench = next[side].bench || [];
+        next[side].bench[target] = next[side].bench[target] || {};
+        next[side].bench[target].tool = name;
+      }
+      // record explicit use so overlay can show it
+      next[side].lastUsedAt = Date.now();
+      next[side].lastUsedName = name;
+      next[side].lastUsedType = "tool";
+      setState(next);
+      sendFull(next);
+    } catch (e) {
+      console.error("attachToolTo error", e);
+    }
   };
 
   const swapSides = () => {
@@ -1155,6 +1317,7 @@ export default function Control(): JSX.Element {
       supporterUsed: false,
       // create fresh arrays for each player so references are not shared
       bench: [null, null, null, null, null],
+      prizes: [false, false, false, false, false, false],
       zones: ["", "", "", ""],
     });
     next.left = makeEmptyPlayer();
@@ -1162,6 +1325,21 @@ export default function Control(): JSX.Element {
 
     setState(next);
     sendFull(next);
+  };
+
+  // Reset prizes for both players
+  const resetPrizes = () => {
+    try {
+      const next: any = structuredClone(state);
+      next.left = next.left || {};
+      next.right = next.right || {};
+      next.left.prizes = [false, false, false, false, false, false];
+      next.right.prizes = [false, false, false, false, false, false];
+      setState(next);
+      sendFull(next);
+    } catch (e) {
+      console.error("resetPrizes", e);
+    }
   };
 
   const toggleFullscreen = () => {
@@ -1328,12 +1506,32 @@ export default function Control(): JSX.Element {
           </button>
           {/* match countdown input and manual start removed; use Reset to set 30:00 and Start to begin simple timer */}
         </div>
+        <div className="row">
+          <label>Show HP</label>
+          <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+            <label style={{ display: "flex", alignItems: "center", gap: 8 }}>
+              <input
+                type="checkbox"
+                checked={state.showHp ?? true}
+                onChange={(e) => handleChange("showHp", e.target.checked)}
+              />
+              <span className="tiny muted">Overlay HP</span>
+            </label>
+          </div>
+        </div>
         <div className="btn-bar">
           <button className="btn" onClick={swapSides}>
             Swap Sides
           </button>
           <button className="btn" onClick={resetZones}>
             Clear Zones
+          </button>
+          <button
+            className="btn"
+            onClick={() => resetPrizes()}
+            title="Reset both players' prize markers"
+          >
+            Reset Prizes
           </button>
           <button
             className="btn"
@@ -1353,6 +1551,20 @@ export default function Control(): JSX.Element {
           }
         >
           <h3>Left Player</h3>
+          <div className="control-prize-row">
+            {Array.from({ length: 6 }).map((_, i) => {
+              const collected = (state.left.prizes || [false, false, false, false, false, false])[i];
+              return (
+                <img
+                  key={i}
+                  src="/poke-life.svg"
+                  alt={`Left prize ${i + 1}`}
+                  className={["control-prize-img", collected ? "collected" : ""].join(" ")}
+                  onClick={() => togglePrize("left", i)}
+                />
+              );
+            })}
+          </div>
           <div className="row">
             <label>Name</label>
             <input
@@ -1365,13 +1577,6 @@ export default function Control(): JSX.Element {
             <input
               value={state.left.record}
               onChange={(e) => handleChange("left.record", e.target.value)}
-            />
-          </div>
-          <div className="row">
-            <label>Deck</label>
-            <input
-              value={state.left.deck}
-              onChange={(e) => handleChange("left.deck", e.target.value)}
             />
           </div>
           <div className="row">
@@ -1453,34 +1658,49 @@ export default function Control(): JSX.Element {
                 setState(next);
                 sendFull(next);
               }}
-              style={{ marginLeft: 8 }}
+              style={{ backgroundColor: "red" }}
             >
               KO
             </button>
+
+            {/* always show Tool label and space; Clear button only when set */}
+            <div style={{ marginLeft: 12 }}>
+              <span className="tiny muted">Tool: </span>
+              <span className="tiny muted">
+                {state.left.active?.tool || "No Attached"}
+              </span>
+              <button
+                className="btn"
+                style={{ marginLeft: 8 }}
+                onClick={() => setToolOnTarget("left", "active", null)}
+              >
+                Clear Tool
+              </button>
+              <button
+                className="btn"
+                style={{ marginLeft: 8 }}
+                disabled={
+                  !(
+                    (state.left.ability &&
+                      String(state.left.ability).trim() !== "") ||
+                    (state.left.active &&
+                      (state.left.active as any).ability &&
+                      String((state.left.active as any).ability).trim() !==
+                        "") ||
+                    (state.left.active &&
+                      Array.isArray((state.left.active as any).abilities) &&
+                      (state.left.active as any).abilities.length > 0)
+                  )
+                }
+                onClick={() => setAbilityUsedOnTarget("left", "active", true)}
+              >
+                Ability Used
+              </button>
+            </div>
           </div>
-          <div className="row">
-            <label>Ability</label>
-            <input
-              value={state.left.ability || ""}
-              onChange={(e) => handleChange("left.ability", e.target.value)}
-            />
-          </div>
-          <div className="row">
-            <label>Attack Name</label>
-            <input
-              value={state.left.attack?.name || ""}
-              onChange={(e) => handleChange("left.attack.name", e.target.value)}
-            />
-          </div>
-          <div className="row">
-            <label>Attack Dmg</label>
-            <input
-              value={state.left.attack?.dmg ?? ""}
-              onChange={(e) =>
-                handleChange("left.attack.dmg", Number(e.target.value) || "")
-              }
-            />
-          </div>
+
+          <div style={{ marginBottom: 20 }}></div>
+          <span> Bench </span>
           {desiredBenchIndexesFor("left").map((i) => (
             <div key={i} className="row">
               <label>{`Bench #${i + 1}`}</label>
@@ -1509,6 +1729,7 @@ export default function Control(): JSX.Element {
               >
                 Swap
               </button>
+
               <input
                 type="number"
                 id={`dec-left-bench-${i}`}
@@ -1571,6 +1792,7 @@ export default function Control(): JSX.Element {
               >
                 KO
               </button>
+
               <input
                 type="number"
                 style={{ width: 80, marginLeft: 8 }}
@@ -1594,27 +1816,45 @@ export default function Control(): JSX.Element {
                   sendFull(next);
                 }}
               />
+              {/* always show bench Tool label and space; Clear button only when set */}
+              <span className="tiny muted" style={{ marginLeft: 8 }}>
+                Tool:
+              </span>
+              <span className="tiny muted" style={{ marginLeft: 6 }}>
+                {(state.left.bench || [])[i]?.tool || "No Attached"}
+              </span>
+              <button
+                className="btn"
+                style={{ marginLeft: 8 }}
+                onClick={() => setToolOnTarget("left", i, null)}
+              >
+                Clear Tool
+              </button>
+              <button
+                className="btn"
+                style={{ marginLeft: 8 }}
+                disabled={
+                  !(
+                    ((state.left.bench || [])[i] &&
+                      ((state.left.bench || [])[i] as any).ability &&
+                      String(
+                        ((state.left.bench || [])[i] as any).ability
+                      ).trim() !== "") ||
+                    ((state.left.bench || [])[i] &&
+                      Array.isArray(
+                        ((state.left.bench || [])[i] as any).abilities
+                      ) &&
+                      ((state.left.bench || [])[i] as any).abilities.length > 0)
+                  )
+                }
+                onClick={() => setAbilityUsedOnTarget("left", i, true)}
+              >
+                Ability Used
+              </button>
             </div>
           ))}
-          <div className="row">
-            <label>Tool</label>
-            <input
-              value={state.left.tool || ""}
-              onChange={(e) => handleChange("left.tool", e.target.value)}
-            />
-          </div>
-          <div className="row">
-            <label>Zones (top→bottom)</label>
-            <input
-              value={state.left.zones.join(" | ")}
-              onChange={(e) =>
-                handleChange(
-                  "left.zones",
-                  e.target.value.split("|").map((s) => s.trim())
-                )
-              }
-            />
-          </div>
+
+          <div style={{ marginBottom: 20 }}></div>
         </div>
 
         <div
@@ -1624,6 +1864,20 @@ export default function Control(): JSX.Element {
           }
         >
           <h3>Right Player</h3>
+          <div className="control-prize-row">
+            {Array.from({ length: 6 }).map((_, i) => {
+              const collected = (state.right.prizes || [false, false, false, false, false, false])[i];
+              return (
+                <img
+                  key={i}
+                  src="/poke-life.svg"
+                  alt={`Right prize ${i + 1}`}
+                  className={["control-prize-img", collected ? "collected" : ""].join(" ")}
+                  onClick={() => togglePrize("right", i)}
+                />
+              );
+            })}
+          </div>
           <div className="row">
             <label>Name</label>
             <input
@@ -1636,13 +1890,6 @@ export default function Control(): JSX.Element {
             <input
               value={state.right.record}
               onChange={(e) => handleChange("right.record", e.target.value)}
-            />
-          </div>
-          <div className="row">
-            <label>Deck</label>
-            <input
-              value={state.right.deck}
-              onChange={(e) => handleChange("right.deck", e.target.value)}
             />
           </div>
           <div className="row">
@@ -1713,48 +1960,60 @@ export default function Control(): JSX.Element {
             >
               Confirm
             </button>
+            <button
+              className="btn"
+              onClick={() => {
+                const next: any = structuredClone(state);
+                // remove active on KO
+                next.right.active = null;
+                next.right.ability = "";
+                delete next.right.attack;
+                delete next.right.attack2;
+                setState(next);
+                sendFull(next);
+              }}
+              style={{ backgroundColor: "red" }}
+            >
+              KO
+            </button>
+
+            {/* always show Tool label and space for right active */}
+            <div style={{ marginLeft: 12 }}>
+              <span className="tiny muted">Tool: </span>
+              <span className="tiny muted">
+                {state.right.active?.tool || "No Attached"}
+              </span>
+              <button
+                className="btn"
+                style={{ marginLeft: 8 }}
+                onClick={() => setToolOnTarget("right", "active", null)}
+              >
+                Clear Tool
+              </button>
+              <button
+                className="btn"
+                style={{ marginLeft: 8 }}
+                disabled={
+                  !(
+                    (state.right.ability &&
+                      String(state.right.ability).trim() !== "") ||
+                    (state.right.active &&
+                      (state.right.active as any).ability &&
+                      String((state.right.active as any).ability).trim() !==
+                        "") ||
+                    (state.right.active &&
+                      Array.isArray((state.right.active as any).abilities) &&
+                      (state.right.active as any).abilities.length > 0)
+                  )
+                }
+                onClick={() => setAbilityUsedOnTarget("right", "active", true)}
+              >
+                Ability Used
+              </button>
+            </div>
           </div>
-          <div className="row">
-            <label>Ability</label>
-            <input
-              value={state.right.ability || ""}
-              onChange={(e) => handleChange("right.ability", e.target.value)}
-            />
-          </div>
-          <div className="row">
-            <label>Attack Name</label>
-            <input
-              value={state.right.attack?.name || ""}
-              onChange={(e) =>
-                handleChange("right.attack.name", e.target.value)
-              }
-            />
-          </div>
-          <button
-            className="btn"
-            onClick={() => {
-              const next: any = structuredClone(state);
-              // remove active on KO
-              next.right.active = null;
-              next.right.ability = "";
-              delete next.right.attack;
-              delete next.right.attack2;
-              setState(next);
-              sendFull(next);
-            }}
-            style={{ marginLeft: 8 }}
-          >
-            KO
-          </button>
-          <div className="row">
-            <label>Attack Dmg</label>
-            <input
-              value={state.right.attack?.dmg ?? ""}
-              onChange={(e) =>
-                handleChange("right.attack.dmg", Number(e.target.value) || "")
-              }
-            />
-          </div>
+          <div style={{ marginBottom: 20 }}></div>
+          Bench
           {desiredBenchIndexesFor("right").map((i) => (
             <div key={i} className="row">
               <label>{`Bench #${i + 1}`}</label>
@@ -1783,6 +2042,7 @@ export default function Control(): JSX.Element {
               >
                 Swap
               </button>
+
               <input
                 type="number"
                 id={`dec-right-bench-${i}`}
@@ -1866,20 +2126,43 @@ export default function Control(): JSX.Element {
                   sendFull(next);
                 }}
               />
+              <span className="tiny muted" style={{ marginLeft: 8 }}>
+                Tool:
+              </span>
+              <span className="tiny muted" style={{ marginLeft: 6 }}>
+                {(state.right.bench || [])[i]?.tool || "No Attached"}
+              </span>
+              <button
+                className="btn"
+                style={{ marginLeft: 8 }}
+                onClick={() => setToolOnTarget("right", i, null)}
+              >
+                Clear Tool
+              </button>
+              <button
+                className="btn"
+                style={{ marginLeft: 8 }}
+                disabled={
+                  !(
+                    ((state.right.bench || [])[i] &&
+                      ((state.right.bench || [])[i] as any).ability &&
+                      String(
+                        ((state.right.bench || [])[i] as any).ability
+                      ).trim() !== "") ||
+                    ((state.right.bench || [])[i] &&
+                      Array.isArray(
+                        ((state.right.bench || [])[i] as any).abilities
+                      ) &&
+                      ((state.right.bench || [])[i] as any).abilities.length >
+                        0)
+                  )
+                }
+                onClick={() => setAbilityUsedOnTarget("right", i, true)}
+              >
+                Ability Used
+              </button>
             </div>
           ))}
-          <div className="row">
-            <label>Zones (top→bottom)</label>
-            <input
-              value={state.right.zones.join(" | ")}
-              onChange={(e) =>
-                handleChange(
-                  "right.zones",
-                  e.target.value.split("|").map((s) => s.trim())
-                )
-              }
-            />
-          </div>
         </div>
       </div>
 
@@ -1990,7 +2273,7 @@ export default function Control(): JSX.Element {
                   </div>
                 </div>
                 <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-                  {!isUtility && (
+                  {!isUtility && isPokemonSupertype(c.supertype) && (
                     <>
                       <button
                         className="btn"
@@ -2274,11 +2557,90 @@ export default function Control(): JSX.Element {
                         </button>
                       );
                     })()}
-                  {subs.includes("tool") && (
-                    <button className="btn" onClick={() => applyUtility(c)}>
-                      Attach
-                    </button>
-                  )}
+                  {isToolSubtype(subs) &&
+                    (() => {
+                      try {
+                        const eff =
+                          (state.turn as "left" | "right") || targetSide;
+                        // list possible targets: active (if present) and bench indexes
+                        const targets: Array<{
+                          key: string;
+                          label: string;
+                          value: "active" | number;
+                          disabled?: boolean;
+                        }> = [];
+                        // active available as a target but disabled if no active Pokémon present
+                        const activePresent = !!(
+                          (state as any)[eff]?.active &&
+                          String(
+                            (state as any)[eff].active?.name || ""
+                          ).trim() !== ""
+                        );
+                        targets.push({
+                          key: "active",
+                          label: "Active",
+                          value: "active",
+                          disabled: !activePresent,
+                        });
+                        for (const bi of desiredBenchIndexesFor(eff)) {
+                          const slot = (state as any)[eff]?.bench?.[bi];
+                          const occupied = !!(
+                            slot && String(slot.name || "").trim() !== ""
+                          );
+                          // disable attach to bench if the slot is empty
+                          targets.push({
+                            key: `bench-${bi}`,
+                            label: `Bench ${bi + 1}`,
+                            value: bi,
+                            disabled: !occupied,
+                          });
+                        }
+                        // If there's only one obvious target (active and no bench), show single Attach button
+                        if (targets.length === 1) {
+                          return (
+                            <button
+                              className="btn"
+                              onClick={() => attachToolTo(eff, "active", c)}
+                            >
+                              Attach to Active
+                            </button>
+                          );
+                        }
+                        // Otherwise, render inline per-target buttons so user can choose
+                        return (
+                          <div
+                            style={{
+                              display: "flex",
+                              gap: 6,
+                              flexWrap: "wrap",
+                            }}
+                          >
+                            {targets.map((t) => (
+                              <button
+                                key={t.key}
+                                className="btn"
+                                onClick={() => attachToolTo(eff, t.value, c)}
+                                disabled={t.disabled}
+                                title={`Attach ${c.name} to ${t.label}`}
+                              >
+                                {t.value === "active"
+                                  ? "Attach to Active"
+                                  : `Attach to Bench ${Number(t.value) + 1}`}
+                              </button>
+                            ))}
+                          </div>
+                        );
+                      } catch (e) {
+                        return (
+                          <button
+                            className="btn"
+                            onClick={() => applyUtility(c)}
+                          >
+                            Attach
+                          </button>
+                        );
+                      }
+                    })()}
                   {subs.includes("supporter") &&
                     (() => {
                       const eff =

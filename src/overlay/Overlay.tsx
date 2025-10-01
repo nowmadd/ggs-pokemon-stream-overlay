@@ -402,12 +402,14 @@ export default function Overlay() {
         data={state.left}
         stadium={state.stadium}
         isTurn={state.turn === "left"}
+        showHp={state.showHp ?? true}
       />
       <PlayerPanel
         side="right"
         data={state.right}
         stadium={state.stadium}
         isTurn={state.turn === "right"}
+        showHp={state.showHp ?? true}
       />
 
       <div className="center-strip">

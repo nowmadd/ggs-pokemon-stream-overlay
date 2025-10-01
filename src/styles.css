@@ -168,6 +168,54 @@ body {
   font-weight: 800;
   letter-spacing: 0.5px;
 }
+
+/* Prize card row under player name: show six poke-life icons spaced evenly */
+.player-prize-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between; /* spread icons across full width */
+  gap: 6px;
+  margin-top: 6px;
+  width: 100%;
+}
+.player-prize-card .player-prize-img {
+  width: 30px;
+  height: 30px;
+  object-fit: contain;
+  opacity: 0.95;
+  display: inline-block;
+  flex: 0 0 auto;
+}
+
+/* overlay prize collected visual */
+.player-prize-card .player-prize-img.collected {
+  filter: grayscale(100%) opacity(0.5);
+}
+
+/* small style for Reset Prizes button in control */
+.btn[title] {
+  font-size: 12px;
+}
+
+/* Control UI prize row (clickable) */
+.control-prize-row {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  margin: 8px 0 10px 0;
+}
+.control-prize-row .control-prize-img {
+  width: 28px;
+  height: 28px;
+  cursor: pointer;
+  transition: filter 180ms ease, opacity 180ms ease, transform 120ms ease;
+}
+.control-prize-row .control-prize-img:hover {
+  transform: translateY(-2px);
+}
+.control-prize-row .control-prize-img.collected {
+  filter: grayscale(100%) opacity(0.5);
+}
 .tiny {
   font-size: 11px;
   opacity: 0.85;
@@ -324,6 +372,11 @@ body {
   object-fit: cover; /* crop to fill the area */
   border-radius: 8px;
   display: block;
+}
+
+/* Small tool badge rendered over the active image in lower-right */
+.active-tool-badge {
+  border: 2px solid rgba(255, 255, 255, 0.06);
 }
 
 /* Ensure transforms and object-position changes are instant (no CSS transition) */
@@ -692,6 +745,16 @@ body {
   max-width: 180px;
 }
 
+/* Visual for used abilities: gray out the ability label image and slightly lower opacity */
+.ability-badge.ability-used .ability-label-img {
+  filter: grayscale(100%) opacity(0.65) drop-shadow(0 1px 0 rgba(0, 0, 0, 0.6));
+}
+
+.ability-badge.ability-used .ability-label-fallback {
+  opacity: 0.6;
+  color: rgba(255, 255, 255, 0.8);
+}
+
 .center-strip {
   position: absolute;
   left: 340px;
@@ -830,7 +893,6 @@ body {
 .grid-2 {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 16px;
 }
 @media (max-width: 1100px) {
   .grid-2 {
