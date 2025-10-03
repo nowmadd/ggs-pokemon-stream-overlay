@@ -220,6 +220,22 @@ body {
   font-size: 11px;
   opacity: 0.85;
 }
+
+/* Attack energy icons */
+.attack-energy {
+  width: 22px;
+  height: 22px;
+  display: inline-block;
+  vertical-align: middle;
+  margin-right: 6px;
+}
+
+/* Free-cost attacks: show a single blank/outline icon. If no dedicated asset exists,
+   the colorless fallback will still receive this class so it can be visually muted. */
+.attack-energy--free {
+  opacity: 0.55;
+  filter: grayscale(100%);
+}
 .side {
   min-height: 0;
 }
@@ -519,16 +535,15 @@ body {
 }
 
 .stat-items {
-  display: inline-flex;
+  display: flex;
   gap: 8px;
   align-items: center;
 }
 .stat-item {
-  background: rgba(255, 255, 255, 0.03);
+  background: rgba(0, 53, 97, 0.03);
   padding: 6px 10px;
   border-radius: 999px;
   font-weight: 800;
-  font-size: 12px;
   text-transform: none;
   color: #e2e8f0;
 }

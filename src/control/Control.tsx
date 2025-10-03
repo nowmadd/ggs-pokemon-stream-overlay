@@ -7,25 +7,39 @@ import {
   defaultState,
 } from "../state";
 import ALL_CARDS from "../cards/allCards";
+import findCardByName from "../cards/findCardByName";
 
 // Optional WebSocket relay for cross-origin OBS setups (best-effort).
+// Only attempt to open a socket when explicitly enabled by the `ws` URL
+// parameter (e.g. `?ws=1`) or when running on localhost/127.0.0.1. This
+// avoids noisy console errors when no relay server is present.
 let wsClient: WebSocket | null = null;
-try {
-  const hosts = [location.hostname, "localhost", "127.0.0.1"];
-  for (const h of hosts) {
-    try {
-      // @ts-ignore runtime WebSocket
-      const c = new WebSocket(`ws://${h}:8765`);
-      c.addEventListener("open", () => (wsClient = c));
-      c.addEventListener("error", () => {
-        try {
-          c.close();
-        } catch {}
-      });
-    } catch {}
-    if (wsClient) break;
-  }
-} catch {}
+(() => {
+  try {
+    const qp = new URLSearchParams(location.search);
+    const wsFlag = qp.get("ws");
+    const wsEnabled =
+      wsFlag === "1" ||
+      wsFlag === "true" ||
+      location.hostname === "localhost" ||
+      location.hostname === "127.0.0.1";
+    if (!wsEnabled) return;
+    const hosts = [location.hostname, "localhost", "127.0.0.1"];
+    for (const h of hosts) {
+      try {
+        // @ts-ignore runtime WebSocket
+        const c = new WebSocket(`ws://${h}:8765`);
+        c.addEventListener("open", () => (wsClient = c));
+        c.addEventListener("error", () => {
+          try {
+            c.close();
+          } catch {}
+        });
+      } catch {}
+      if (wsClient) break;
+    }
+  } catch {}
+})();
 
 export default function Control(): JSX.Element {
   const [state, setState] = useState<OverlayState>(loadState);
@@ -67,7 +81,14 @@ export default function Control(): JSX.Element {
     try {
       const next: any = structuredClone(state);
       next[side] = next[side] || {};
-      next[side].prizes = next[side].prizes || [false, false, false, false, false, false];
+      next[side].prizes = next[side].prizes || [
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+      ];
       next[side].prizes[idx] = !next[side].prizes[idx];
       setState(next);
       sendFull(next);
@@ -285,12 +306,19 @@ export default function Control(): JSX.Element {
           // reset the flag for the player who now has the turn
           (next as any)[newTurn] = (next as any)[newTurn] || {};
           (next as any)[newTurn].supporterUsed = false;
+          // reset energy and retreat flag at turn start
+          (next as any)[newTurn].energy = 0;
+          (next as any)[newTurn].retreatUsed = false;
         } else if (newTurn === "") {
           // clearing turn: reset both
           (next as any).left = (next as any).left || {};
           (next as any).right = (next as any).right || {};
           (next as any).left.supporterUsed = false;
           (next as any).right.supporterUsed = false;
+          (next as any).left.energy = 0;
+          (next as any).right.energy = 0;
+          (next as any).left.retreatUsed = false;
+          (next as any).right.retreatUsed = false;
         }
       } catch {}
     }
@@ -1553,13 +1581,23 @@ export default function Control(): JSX.Element {
           <h3>Left Player</h3>
           <div className="control-prize-row">
             {Array.from({ length: 6 }).map((_, i) => {
-              const collected = (state.left.prizes || [false, false, false, false, false, false])[i];
+              const collected = (state.left.prizes || [
+                false,
+                false,
+                false,
+                false,
+                false,
+                false,
+              ])[i];
               return (
                 <img
                   key={i}
                   src="/poke-life.svg"
                   alt={`Left prize ${i + 1}`}
-                  className={["control-prize-img", collected ? "collected" : ""].join(" ")}
+                  className={[
+                    "control-prize-img",
+                    collected ? "collected" : "",
+                  ].join(" ")}
                   onClick={() => togglePrize("left", i)}
                 />
               );
@@ -1676,6 +1714,39 @@ export default function Control(): JSX.Element {
               >
                 Clear Tool
               </button>
+              <div
+                style={{
+                  display: "inline-flex",
+                  alignItems: "center",
+                  marginLeft: 12,
+                }}
+              >
+                <span className="tiny muted">Energy:</span>
+                <button
+                  className="btn"
+                  style={{ marginLeft: 8 }}
+                  onClick={() => {
+                    const next: any = structuredClone(state);
+                    next.left.energy = !next.left.energy;
+                    setState(next);
+                    sendFull(next);
+                  }}
+                >
+                  {state.left.energy ? "On" : "Off"}
+                </button>
+                <button
+                  className="btn"
+                  style={{ marginLeft: 8 }}
+                  onClick={() => {
+                    const next: any = structuredClone(state);
+                    next.left.retreatUsed = !next.left.retreatUsed;
+                    setState(next);
+                    sendFull(next);
+                  }}
+                >
+                  {state.left.retreatUsed ? "Retreated" : "Retreat"}
+                </button>
+              </div>
               <button
                 className="btn"
                 style={{ marginLeft: 8 }}
@@ -1866,13 +1937,23 @@ export default function Control(): JSX.Element {
           <h3>Right Player</h3>
           <div className="control-prize-row">
             {Array.from({ length: 6 }).map((_, i) => {
-              const collected = (state.right.prizes || [false, false, false, false, false, false])[i];
+              const collected = (state.right.prizes || [
+                false,
+                false,
+                false,
+                false,
+                false,
+                false,
+              ])[i];
               return (
                 <img
                   key={i}
                   src="/poke-life.svg"
                   alt={`Right prize ${i + 1}`}
-                  className={["control-prize-img", collected ? "collected" : ""].join(" ")}
+                  className={[
+                    "control-prize-img",
+                    collected ? "collected" : "",
+                  ].join(" ")}
                   onClick={() => togglePrize("right", i)}
                 />
               );
@@ -1990,6 +2071,39 @@ export default function Control(): JSX.Element {
               >
                 Clear Tool
               </button>
+              <div
+                style={{
+                  display: "inline-flex",
+                  alignItems: "center",
+                  marginLeft: 12,
+                }}
+              >
+                <span className="tiny muted">Energy:</span>
+                <button
+                  className="btn"
+                  style={{ marginLeft: 8 }}
+                  onClick={() => {
+                    const next: any = structuredClone(state);
+                    next.right.energy = !next.right.energy;
+                    setState(next);
+                    sendFull(next);
+                  }}
+                >
+                  {state.right.energy ? "On" : "Off"}
+                </button>
+                <button
+                  className="btn"
+                  style={{ marginLeft: 8 }}
+                  onClick={() => {
+                    const next: any = structuredClone(state);
+                    next.right.retreatUsed = !next.right.retreatUsed;
+                    setState(next);
+                    sendFull(next);
+                  }}
+                >
+                  {state.right.retreatUsed ? "Retreated" : "Retreat"}
+                </button>
+              </div>
               <button
                 className="btn"
                 style={{ marginLeft: 8 }}

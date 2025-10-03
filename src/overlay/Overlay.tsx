@@ -1,6 +1,7 @@
 import { useEffect, useState, useRef } from "react";
 import PlayerPanel from "../components/PlayerPanel";
 import ALL_CARDS from "../cards/allCards";
+import findCardByName from "../cards/findCardByName";
 import { channel, loadState, saveState, OverlayState } from "../state";
 // Optional WebSocket relay support (for cross-origin OBS setups)
 let wsClientOverlay: WebSocket | null = null;
@@ -291,16 +292,20 @@ export default function Overlay() {
       const s = state.stadium || "";
       if (!s) return null;
       const key = String(s).toLowerCase().trim();
-      let found = ALL_CARDS.find(
-        (c: any) => String(c.name || "").toLowerCase() === key
-      );
-      if (!found) {
-        found = ALL_CARDS.find((c: any) =>
-          String(c.name || "")
-            .toLowerCase()
-            .includes(key)
-        );
-      }
+      let found = null as any;
+      try {
+        // prefer exact match via helper, fallback to substring using the helper's substring behavior
+        const exact = findCardByName(key);
+        if (exact) found = exact;
+        else {
+          // as a last resort, try substring scan
+          found = ALL_CARDS.find((c: any) =>
+            String(c.name || "")
+              .toLowerCase()
+              .includes(key)
+          );
+        }
+      } catch {}
       const raw = found?.images?.large || found?.images?.small || null;
       return pickHires(raw) || raw || null;
     } catch {
