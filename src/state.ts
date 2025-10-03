@@ -20,6 +20,9 @@ export type PlayerState = {
   attack2?: Attack;
   tool?: string;
   supporterUsed?: boolean;
+  // per-player energy toggle (boolean) and retreat flag
+  energy?: boolean;
+  retreatUsed?: boolean;
   // timestamped use event for showing a recently used card in the overlay
   lastUsedAt?: number;
   lastUsedName?: string;
@@ -60,6 +63,8 @@ export const defaultState: OverlayState = {
     deck: "",
     active: { name: "", hp: 0, maxHp: 300 },
     supporterUsed: false,
+    energy: false,
+    retreatUsed: false,
     bench: [],
     prizes: [false, false, false, false, false, false],
     zones: ["", "", "", ""],
@@ -70,6 +75,8 @@ export const defaultState: OverlayState = {
     deck: "",
     active: { name: "", hp: 0, maxHp: 300 },
     supporterUsed: false,
+    energy: false,
+    retreatUsed: false,
     bench: [],
     prizes: [false, false, false, false, false, false],
     zones: ["", "", "", ""],

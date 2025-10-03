@@ -1,5 +1,6 @@
 import React from "react";
 import ALL_CARDS from "../cards/allCards";
+import findCardByName from "../cards/findCardByName";
 
 type Attack = {
   name?: string;
@@ -28,10 +29,7 @@ export default function AttackDisplay({
   // If no cost present on the attack object, try to resolve from bundled ALL_CARDS by card name + attack name
   if ((!cost || cost.length === 0) && cardName && attack.name) {
     try {
-      const found = ALL_CARDS.find(
-        (c: any) =>
-          String(c.name || "").toLowerCase() === String(cardName).toLowerCase()
-      );
+      const found = findCardByName(cardName as string);
       if (found && Array.isArray(found.attacks)) {
         const matched = found.attacks.find(
           (a: any) =>
@@ -46,6 +44,33 @@ export default function AttackDisplay({
   const renderEnergy = (c: string, idx: number) => {
     const raw = String(c || "").trim();
     const lower = raw.toLowerCase();
+
+    // If the cost is explicitly FREE, render a single inline SVG blank/free energy icon
+    if (lower === "free") {
+      // Inline SVG ensures it always displays even when external assets are missing
+      return (
+        <svg
+          key={idx}
+          className="attack-energy attack-energy--free"
+          width="22"
+          height="22"
+          viewBox="0 0 24 24"
+          xmlns="http://www.w3.org/2000/svg"
+          aria-label={raw}
+          role="img"
+        >
+          <circle
+            cx="12"
+            cy="12"
+            r="10"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="1.6"
+            opacity="0.6"
+          />
+        </svg>
+      );
+    }
 
     // normalize common variants to canonical filenames
     const synonyms: Record<string, string> = {

@@ -1,6 +1,7 @@
 import { PlayerState } from "../state";
 import { useEffect, useState, useRef } from "react";
 import ALL_CARDS from "../cards/allCards";
+import findCardByName from "../cards/findCardByName";
 import AbilityBadge from "../components/AbilityBadge";
 import AttackDisplay from "../components/AttackDisplay";
 
@@ -234,10 +235,7 @@ export default function PlayerPanel({
       // fallback: try to find card by name in ALL_CARDS
       const name = data?.active?.name;
       if (name) {
-        const found = ALL_CARDS.find(
-          (c: any) =>
-            String(c.name || "").toLowerCase() === String(name).toLowerCase()
-        );
+        const found = findCardByName(name);
         if (found && found.subtypes)
           return (found.subtypes || []).map((s: any) =>
             String(s).toLowerCase()
@@ -269,9 +267,7 @@ export default function PlayerPanel({
           .toLowerCase()
           .trim();
         // direct exact match first
-        let found = ALL_CARDS.find(
-          (c: any) => String(c.name || "").toLowerCase() === target
-        );
+        let found = findCardByName(target);
         if (found) return found;
         // normalized match: strip non-alphanum and compare
         const norm = (s: string) =>
@@ -279,15 +275,11 @@ export default function PlayerPanel({
             .toLowerCase()
             .replace(/[^a-z0-9]/g, "");
         const targetNorm = norm(target);
-        found = ALL_CARDS.find((c: any) => norm(c.name || "") === targetNorm);
-        if (found) return found;
+        const exactNorm = findCardByName(target);
+        if (exactNorm) return exactNorm;
         // substring fallback: find any card whose name contains the target (useful for short labels)
-        found = ALL_CARDS.find((c: any) =>
-          String(c.name || "")
-            .toLowerCase()
-            .includes(target)
-        );
-        return found || null;
+        const substr = findCardByName(target);
+        return substr || null;
       })()
     : null;
   const usedImg = usedCard?.images?.large || usedCard?.images?.small || null;
@@ -683,7 +675,9 @@ export default function PlayerPanel({
                     key={idx}
                     src="/poke-life.svg"
                     alt={`Prize ${idx + 1}`}
-                    className={"player-prize-img" + (collected ? " collected" : "")}
+                    className={
+                      "player-prize-img" + (collected ? " collected" : "")
+                    }
                   />
                 );
               })}
@@ -751,6 +745,7 @@ export default function PlayerPanel({
                         found?.images?.small || found?.images?.large || null;
                       const src = raw ? pickHires(raw) || raw : null;
                       if (!src) return null;
+                      if (!found.subtypes.includes("Pokémon Tool")) return null;
                       return (
                         <div
                           style={{
@@ -764,20 +759,22 @@ export default function PlayerPanel({
                             zIndex: 6,
                           }}
                         >
-                          <img
-                            src={src as string}
-                            alt={String(toolName)}
-                            className="active-tool-badge"
-                            style={{
-                              width: "100%",
-                              height: "100%",
-                              display: "block",
-                              objectFit: "cover",
-                              transform: `scale(1.2)`,
-                              transformOrigin: "center",
-                              objectPosition: "center -10px",
-                            }}
-                          />
+                          {true && (
+                            <img
+                              src={src as string}
+                              alt={String(toolName)}
+                              className="active-tool-badge"
+                              style={{
+                                width: "100%",
+                                height: "100%",
+                                display: "block",
+                                objectFit: "cover",
+                                transform: `scale(1.2)`,
+                                transformOrigin: "center",
+                                objectPosition: "center -10px",
+                              }}
+                            />
+                          )}
                         </div>
                       );
                     } catch {
@@ -1120,7 +1117,6 @@ export default function PlayerPanel({
 
         <div className="stat">
           <div className="stat-items">
-            <div className="stat-item">Energy</div>
             <div
               className={[
                 "stat-item",
@@ -1129,7 +1125,22 @@ export default function PlayerPanel({
             >
               Supporter
             </div>
-            <div className="stat-item">Retreat</div>
+            <div
+              className={["stat-item", data?.energy ? "disabled" : ""].join(
+                " "
+              )}
+            >
+              Energy
+            </div>
+
+            <div
+              className={[
+                "stat-item",
+                data?.retreatUsed ? "disabled" : "",
+              ].join(" ")}
+            >
+              Retreat
+            </div>
           </div>
         </div>
       </div>
